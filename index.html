@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0a0c14">
+  <meta name="description" content="Swift Bot: Geometry Dash impossible-level showcase recorder and replay macro workstation.">
+  <title>Swift Bot | Showcase workstation</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script defer type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Swift Bot home"><span class="brand-mark">S<span class="brand-glint">/</span></span><span>SWIFT<span class="dim">BOT</span></span><span class="brand-version">ALPHA 0.1</span></a>
+      <nav><a href="#workspace">Workspace</a><a href="#architecture">Architecture</a><a href="https://github.com/Aspheral/Swift-Bot" target="_blank" rel="noopener">GitHub ↗</a></nav>
+      <span class="header-status"><span class="pulse-dot"></span> SOURCE PROTOTYPE</span>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="slim-line"></span> A NEW STANDARD FOR SHOWCASING THE IMPOSSIBLE</p>
+          <h1>Precision is<br><em>everything.</em></h1>
+          <p class="hero-sub">Record the impossible. Inspect every input. Build the perfect showcase, one physics tick at a time.</p>
+          <div class="hero-actions"><a class="btn primary" href="#workspace">OPEN MACRO LAB <span>↗</span></a><a class="btn ghost" href="https://github.com/Aspheral/Swift-Bot" target="_blank" rel="noopener">VIEW SOURCE <span>↗</span></a></div>
+          <div class="hero-fine"><span>GEODE / WINDOWS</span><span>GD 2.2081</span><span>REPLAY FORMAT V1</span></div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="art-grid"></div><div class="art-circle circle-a"></div><div class="art-circle circle-b"></div>
+          <div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div>
+          <div class="cube large-cube"><div class="cube-eye"></div><div class="cube-eye right"></div><div class="cube-mouth"></div></div>
+          <div class="art-particles">+&nbsp; ·&nbsp; +&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ·&nbsp;&nbsp; +</div>
+          <div class="floating-card"><span class="red-led"></span> FRAME-ACCURATE AMBITION<br><strong>SWIFT / LAB 01</strong></div>
+        </div>
+      </section>
+      <section class="stats-grid" aria-label="Project capabilities">
+        <div><span>01 / RECORDING</span><strong>240 <small>TPS*</small></strong><p>Whole-step prototype</p></div>
+        <div><span>02 / SPEED</span><strong>0.001<small>×*</small></strong><p>Experimental scale setting</p></div>
+        <div><span>03 / TIMELINE</span><strong>LIVE <small>LAB</small></strong><p>Macro inspect and edit</p></div>
+        <div><span>04 / PRECISION</span><strong>CBF <small>SOON</small></strong><p>Sub-tick capture planned</p></div>
+      </section>
+      <section id="workspace" class="workspace">
+        <div class="section-top"><div><p class="eyebrow"><span class="slim-line"></span> THE WORKSPACE</p><h2>Macro <em>Lab.</em></h2><p>Edit recorded input events and visualize their timing. The website does not run Geometry Dash physics.</p></div><span class="section-index">/ 001</span></div>
+        <div class="lab">
+          <div class="lab-toolbar">
+            <div class="lab-title"><span class="lab-icon">⌁</span><div><strong>SESSION / <span id="sessionName">DEMO.SWIFT</span></strong><small>WHOLE-PHYSICS-TICK TIMELINE</small></div></div>
+            <div class="lab-buttons"><label class="mini-button upload" for="upload">↑ IMPORT .SWIFT<input id="upload" type="file" accept=".swift,.txt,text/plain"></label><button class="mini-button" id="export">↓ EXPORT</button><button class="mini-button dim-button" id="demo">RESET DEMO</button></div>
+          </div>
+          <div class="lab-content">
+            <div class="lab-main">
+              <div class="timeline-top"><div><span class="tiny-label">INPUT TIMELINE</span><span class="event-count" id="eventCount">0 EVENTS</span></div><div class="timeline-legend"><i class="legend-down"></i> PRESS <i class="legend-up"></i> RELEASE</div></div>
+              <canvas id="timeline" width="900" height="285" role="img" aria-label="Timeline showing input press and release events"></canvas>
+              <div class="timeline-axis"><span>0.00s</span><span id="axisMiddle">0.50s</span><span id="axisEnd">1.00s</span></div>
+              <div class="transport"><button id="play" class="play-btn" aria-label="Play timeline preview">▶</button><button id="reset" class="icon-btn" aria-label="Reset playhead">↺</button><div class="scrub"><input type="range" id="scrubber" value="0" min="0" max="1000" aria-label="Playhead position"></div><span class="timecode" id="timecode">00:00.000 / 00:00.000</span></div>
+              <div class="event-header"><span>INPUT EVENTS</span><button id="add" class="add-button">+ ADD EVENT</button></div>
+              <div class="event-table-wrapper"><table><thead><tr><th>TICK</th><th>PLAYER</th><th>BUTTON</th><th>ACTION</th><th></th></tr></thead><tbody id="eventRows"></tbody></table><p id="empty" class="empty">There are no events. Import a macro or add one.</p></div>
+            </div>
+            <aside class="lab-aside">
+              <div class="aside-heading"><span>SESSION SETTINGS</span><span class="aside-corner">⌗</span></div>
+              <label class="setting"><span>Recorded TPS <span class="help" title="Metadata only. Changing this will reinterpret timestamps, not convert GD physics.">ⓘ</span></span><input type="number" id="tps" value="240" min="1" max="100000" step="1"></label>
+              <label class="setting"><span>Preview speed</span><select id="speed"><option value="1">1.0× NORMAL</option><option value="0.25">0.25×</option><option value="0.1">0.10×</option><option value="0.01">0.01×</option><option value="0.001">0.001×</option></select></label>
+              <div class="setting summary-setting"><span>Duration</span><strong id="duration">0.000s</strong></div>
+              <div class="setting summary-setting"><span>Pressed inputs</span><strong id="presses">0</strong></div>
+              <div class="aside-note"><span>⚠ CURRENT LIMITS</span><p>Web playback is a timing preview, not native GD playback. CBF sub-ticks, authoritative trajectory predictions, and verified speedhacking are still in development.</p></div>
+              <a class="aside-link" href="https://github.com/Aspheral/Swift-Bot/blob/main/README.md" target="_blank" rel="noopener">READ FORMAT SPEC ↗</a>
+            </aside>
+          </div>
+          <div class="lab-footer"><span id="feedback" role="status">DEMO SESSION READY</span><span>SWIFT1 / TEXT FORMAT</span></div>
+        </div>
+      </section>
+      <section id="architecture" class="arch-section"><div><p class="eyebrow"><span class="slim-line"></span> BUILDING THE FOUNDATION</p><h2>Engine first.<br><em>Everything else follows.</em></h2><p>Replay correctness comes before spectacular overlays. The Geode plugin handles in-game input and simulation. This site handles inspectable macros and planning.</p><a href="https://github.com/Aspheral/Swift-Bot" target="_blank" rel="noopener">EXPLORE THE REPOSITORY ↗</a></div><div class="arch-list"><article><span>01</span><div><h3>NATIVE EVENT CAPTURE</h3><p>Hook physics-command processing and record tick-indexed press/release events.</p></div><span class="state partial">PROTOTYPE</span></article><article><span>02</span><div><h3>CONTINUOUS SLOW MOTION</h3><p>Scale simulation time while rendering continues. Requires in-game validation.</p></div><span class="state partial">EXPERIMENT</span></article><article><span>03</span><div><h3>CBF + TRAJECTORY ENGINE</h3><p>Sub-tick input semantics, verified state snapshots, and game-native lookahead.</p></div><span class="state planned">PLANNED</span></article></div></section>
+    </main>
+    <footer><div class="brand small-brand"><span class="brand-mark">S<span class="brand-glint">/</span></span><span>SWIFT<span class="dim">BOT</span></span></div><span>CRAFTED BY ASPHERAL / FOR THE IMPOSSIBLE</span><a href="https://github.com/Aspheral/Swift-Bot" target="_blank" rel="noopener">OPEN SOURCE ↗</a></footer>
+  </div>
+</body></html>
