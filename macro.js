@@ -53,9 +53,15 @@ export function duration(macro) {
 
 export function transitionsAt(macro, tick) {
   const held = new Map();
-  for (const e of macro.events) {
-    if (e.tick > tick) break;
-    held.set(`${e.player2}:${e.button}`, !!e.down);
+  let left = 0, right = macro.events.length;
+  while (left < right) {
+    const middle = Math.floor((left + right) / 2);
+    if (macro.events[middle].tick <= tick) left = middle + 1;
+    else right = middle;
+  }
+  for (let i = left - 1; i >= 0 && held.size < 6; --i) {
+    const e = macro.events[i], key = `${e.player2}:${e.button}`;
+    if (!held.has(key)) held.set(key, !!e.down);
   }
   return held;
 }
