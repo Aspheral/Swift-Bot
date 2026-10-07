@@ -7,7 +7,7 @@ const total=()=>Math.max(duration(state.macro),0.01);
 const fmt=t=>{const minutes=Math.floor(t/60); const seconds=Math.floor(t%60);const ms=Math.floor((t%1)*1000);return String(minutes).padStart(2,"0")+":"+String(seconds).padStart(2,"0")+"."+String(ms).padStart(3,"0");};
 function rerender(){
  const m=state.macro;
- $("eventCount").textContent=m.events.length+" EVENTS";
+ $("eventCount").textContent=m.events.length+" EVENTS"+(m.events.length>250?" · FIRST 250 SHOWN":"");
  $("duration").textContent=duration(m).toFixed(3)+"s";
  $("presses").textContent=m.events.filter(e=>e.down).length;
  $("axisMiddle").textContent=(total()/2).toFixed(2)+"s";
@@ -17,7 +17,7 @@ function rerender(){
  $("empty").hidden=m.events.length>0;
  // DocumentFragment avoids HTML injection from imported files.
  const fragment=document.createDocumentFragment();
- m.events.forEach((event,i)=>{
+ m.events.slice(0,250).forEach((event,i)=>{
   const row=document.createElement("tr");
   const config=[
     ["number",event.tick,1,Number.MAX_SAFE_INTEGER,"tick"],
@@ -57,7 +57,8 @@ function draw(){
  for(let i=0;i<5;i++){let y=top+(bottom-top)*i/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
  const bands=[top+((bottom-top)*.29),top+((bottom-top)*.72)];
  ctx.font="10px ui-monospace,monospace";ctx.fillStyle="#79869d";ctx.fillText("P1",13,bands[0]-19);ctx.fillText("P2",13,bands[1]-19);
- state.macro.events.forEach(e=>{
+ const step=Math.max(1,Math.ceil(state.macro.events.length/6000));
+ state.macro.events.forEach((e,i)=>{if(i%step!==0)return;
   const x=px(e.tick/state.macro.tps),y=bands[e.player2];
   ctx.lineWidth=2;ctx.strokeStyle=e.down?"#fc555e":"#61d8cd";ctx.beginPath();ctx.moveTo(x,y-20);ctx.lineTo(x,y+20);ctx.stroke();
   ctx.fillStyle=e.down?"#fc555e":"#61d8cd";ctx.fillRect(x-3,y-3,6,6);
