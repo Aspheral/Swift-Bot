@@ -1,0 +1,29 @@
+name: Windows Geode Build
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-win64:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Swift Bot
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Build the native Geode mod
+        id: build
+        uses: geode-sdk/build-geode-mod@586d1046506e351d1b366c7ed5e3ae1ed73bd541
+        with:
+          sdk: v5.10.1
+          target: Win64
+      - name: Save Windows Geode mod artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: Swift-Bot-Win64
+          path: ${{ steps.build.outputs.build-output }}
+          if-no-files-found: error
