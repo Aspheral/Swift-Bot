@@ -2,107 +2,103 @@
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/CCScheduler.hpp>
+#include "ReplayCore.hpp"
+
 #include <algorithm>
-#include <cstdint>
+#include <array>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
+#include <string>
 #include <vector>
 
 using namespace geode::prelude;
 
 namespace swift {
-    enum class Mode { Idle, Record, Playback };
-    struct Event {
-        std::uint64_t tick;
-        int button;
-        bool player2;
-        bool down;
-    };
-    static Mode mode = Mode::Idle;
-    static bool active = false;
-    static bool injecting = false;
-    static std::uint64_t tick = 0;
-    static size_t cursor = 0;
-    static std::vector<Event> events;
-    static constexpr int kTPS = 240; // Metadata only. Does not install a TPS bypass.
+static ReplayCore core;
+static bool active = false;
+static bool injecting = false;
+static bool resetting = false;
+static std::array<std::size_t, 2> counts{};
+static cocos2d::CCLabelBMFont* statusLabel = nullptr;
 
-    static std::filesystem::path filePath() {
-        return Mod::get()->getSaveDir() / "latest.swift";
-    }
-
-    static bool save() {
-        auto path = filePath();
-        std::error_code ec;
-        std::filesystem::create_directories(path.parent_path(), ec);
-        if (ec) return false;
-        std::ofstream out(path, std::ios::trunc);
-        if (!out) return false;
-        out << "SWIFT1 " << kTPS << '\n';
-        for (auto const& e : events) {
-            out << e.tick << ' ' << e.button << ' ' << int(e.player2) << ' ' << int(e.down) << '\n';
-        }
-        out.flush();
-        return out.good();
-    }
-
-    static bool load() {
-        std::ifstream in(filePath());
-        std::string magic;
-        int tps = 0;
-        if (!(in >> magic >> tps) || magic != "SWIFT1" || tps != kTPS) return false;
-        std::vector<Event> parsed;
-        std::uint64_t t;
-        int button, p2, down;
-        while (in >> t >> button >> p2 >> down) {
-            if (button < 1 || button > 3 || p2 < 0 || p2 > 1 || down < 0 || down > 1) return false;
-            if (!parsed.empty() && t < parsed.back().tick) return false;
-            parsed.push_back({t, button, bool(p2), bool(down)});
-            if (parsed.size() > 2000000) return false;
-        }
-        if (!in.eof()) return false;
-        events = std::move(parsed);
-        cursor = 0;
-        return true;
-    }
-
-    static void resetClock() {
-        tick = 0;
-        cursor = 0;
-    }
+static std::filesystem::path macroPath() {
+    return Mod::get()->getSaveDir() / "latest.swift";
 }
 
-// NOTE: Whole-tick recording only. The exact timing of input inside the
-// current physics step is intentionally not fabricated as CBF data.
+static bool save() {
+    auto path = macroPath();
+    std::error_code ec;
+    std::filesystem::create_directories(path.parent_path(), ec);
+    if (ec) return false;
+    std::ofstream file(path, std::ios::trunc);
+    if (!file) return false;
+    ReplayCore::write(file, core.events());
+    file.flush();
+    return file.good();
+}
+
+static bool load(std::vector<InputEvent>& events) {
+    std::ifstream file(macroPath());
+    if (!file) return false;
+    return ReplayCore::read(file, events);
+}
+
+static void refreshStatus() {
+    if (!statusLabel) return;
+    const char* mode = core.mode() == Mode::Record ? "REC" :
+                       core.mode() == Mode::Playback ? "PLAY" : "IDLE";
+    const std::string text = std::string(mode) + "  P1: " +
+        std::to_string(counts[0]) + " | P2: " + std::to_string(counts[1]);
+    statusLabel->setString(text.c_str());
+}
+
+static void resetCounters() {
+    counts = {};
+    refreshStatus();
+}
+
+static void countInput(bool player2, int button) {
+    if (!ReplayCore::validButton(button)) return;
+    ++counts[player2 ? 1 : 0];
+    refreshStatus();
+}
+} // namespace swift
+
+// IMPORTANT: GJBaseGameLayer's player2 flag identifies the physical
+// player channel. Never infer the player from 'dual mode' or the keyboard key.
+// The input log preserves per-player order even for same-tick events.
 class $modify(SwiftInputLayer, GJBaseGameLayer) {
     void handleButton(bool down, int button, bool player2) {
-        if (swift::active && this == PlayLayer::get()) {
-            if (swift::mode == swift::Mode::Playback && !swift::injecting) return;
-            if (swift::mode == swift::Mode::Record && !swift::injecting) {
-                swift::events.push_back({swift::tick, button, player2, down});
+        if (swift::active && this == PlayLayer::get() && !swift::resetting) {
+            if (!swift::injecting) {
+                if (!swift::core.physicalInput(down, button, player2)) return;
+                if (swift::core.mode() == swift::Mode::Record)
+                    swift::countInput(player2, button);
             }
+            // Injected replay events update the core held state in
+            // dispatchCurrentTick, without being re-recorded here.
         }
         GJBaseGameLayer::handleButton(down, button, player2);
     }
 
     void processCommands(float dt, bool p1, bool p2) {
-        if (swift::active && this == PlayLayer::get() && swift::mode == swift::Mode::Playback) {
-            while (swift::cursor < swift::events.size() &&
-                   swift::events[swift::cursor].tick <= swift::tick) {
-                auto const event = swift::events[swift::cursor++];
+        const bool inLevel = swift::active && this == PlayLayer::get();
+        if (inLevel && !swift::resetting) {
+            swift::core.dispatchCurrentTick([&](swift::InputEvent const& event) {
                 swift::injecting = true;
                 this->handleButton(event.down, event.button, event.player2);
                 swift::injecting = false;
-            }
+                swift::countInput(event.player2, event.button);
+            });
         }
         GJBaseGameLayer::processCommands(dt, p1, p2);
-        if (swift::active && this == PlayLayer::get()) ++swift::tick;
+        if (inLevel && !swift::resetting)
+            swift::core.finishedPhysicsStep();
     }
 };
 
-// Experiment only: render FPS is unaffected by passing a smaller elapsed
-// simulation time through CCScheduler; GD may still enforce minimum steps.
-// Audio sync and interactions with physics mods are NOT yet solved.
+// Continuous delta scaling is an EXPERIMENT, not an independently verified
+// TPS bypass or true sub-tick physics slow-motion. Default is 1.0x.
 class $modify(SwiftScheduler, cocos2d::CCScheduler) {
     void update(float dt) {
         if (swift::active) {
@@ -115,62 +111,92 @@ class $modify(SwiftScheduler, cocos2d::CCScheduler) {
 
 class $modify(SwiftPlayLayer, PlayLayer) {
     void onSwiftRecord(CCObject*) {
-        swift::mode = swift::Mode::Record;
-        swift::events.clear();
-        swift::resetClock();
+        swift::core.stop();
         this->resetLevel();
-        log::info("[Swift] Recording 240 TPS whole-step inputs");
+        swift::core.beginRecord();
+        swift::resetCounters();
+        log::info("[Swift] Recording independent P1/P2 button events");
     }
+
     void onSwiftStop(CCObject*) {
-        if (swift::mode == swift::Mode::Record) {
-            log::info("[Swift] Saved recording: {}", swift::save());
+        if (swift::core.mode() == swift::Mode::Record) {
+            const auto p1 = swift::core.stats(false);
+            const auto p2 = swift::core.stats(true);
+            const bool saved = swift::save();
+            log::info("[Swift] Saved: {} | P1: {} presses / {} releases; P2: {} presses / {} releases",
+                saved, p1.presses, p1.releases, p2.presses, p2.releases);
+            if (!saved) {
+                FLAlertLayer::create("Swift Bot", "Could not save latest.swift.", "OK")->show();
+            }
         }
-        swift::mode = swift::Mode::Idle;
+        swift::core.stop();
+        swift::refreshStatus();
     }
+
     void onSwiftPlay(CCObject*) {
-        if (!swift::load()) {
-            FLAlertLayer::create("Swift Bot", "No compatible latest.swift recording found.", "OK")->show();
+        std::vector<swift::InputEvent> events;
+        if (!swift::load(events)) {
+            FLAlertLayer::create("Swift Bot", "Missing or invalid latest.swift (requires SWIFT1 240).", "OK")->show();
             return;
         }
-        swift::mode = swift::Mode::Playback;
-        swift::resetClock();
+        swift::core.stop();
         this->resetLevel();
-        log::info("[Swift] Playing {} whole-step events", swift::events.size());
+        swift::core.beginPlayback(std::move(events));
+        swift::resetCounters();
+        log::info("[Swift] Playback ready: P1 {} events; P2 {} events",
+            swift::core.stats(false).events, swift::core.stats(true).events);
     }
 
     bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects) {
         if (!PlayLayer::init(level, useReplay, dontCreateObjects)) return false;
+
+        swift::core.stop();
+        swift::core.resetAttempt();
         swift::active = true;
-        swift::mode = swift::Mode::Idle;
-        swift::resetClock();
+        swift::resetting = false;
+        swift::injecting = false;
+        swift::counts = {};
 
         auto menu = CCMenu::create();
-        auto makeButton = [&](char const* text, SEL_MenuHandler selector) {
-            auto label = CCLabelBMFont::create(text, "goldFont.fnt");
+        auto makeButton = [&](char const* title, SEL_MenuHandler selector) {
+            auto label = CCLabelBMFont::create(title, "goldFont.fnt");
             label->setScale(0.58f);
-            auto item = CCMenuItemSpriteExtra::create(label, this, selector);
-            menu->addChild(item);
+            menu->addChild(CCMenuItemSpriteExtra::create(label, this, selector));
         };
         makeButton("REC", menu_selector(SwiftPlayLayer::onSwiftRecord));
         makeButton("STOP", menu_selector(SwiftPlayLayer::onSwiftStop));
         makeButton("PLAY", menu_selector(SwiftPlayLayer::onSwiftPlay));
         menu->alignItemsVerticallyWithPadding(5.f);
+
         auto screen = CCDirector::sharedDirector()->getWinSize();
-        menu->setPosition({screen.width - 32.f, screen.height - 88.f});
-        menu->setZOrder(10000);
+        menu->setPosition({screen.width - 34.f, screen.height - 91.f});
         this->addChild(menu, 10000);
+
+        swift::statusLabel = CCLabelBMFont::create("IDLE  P1: 0 | P2: 0", "chatFont.fnt");
+        swift::statusLabel->setScale(0.58f);
+        swift::statusLabel->setAnchorPoint({1.f, 0.5f});
+        swift::statusLabel->setPosition({screen.width - 8.f, screen.height - 143.f});
+        this->addChild(swift::statusLabel, 10000);
+        swift::refreshStatus();
         return true;
     }
 
     void resetLevel() {
-        swift::resetClock();
+        swift::resetting = true;
+        swift::core.resetAttempt();
+        swift::resetCounters();
         PlayLayer::resetLevel();
+        swift::resetting = false;
     }
 
     void onExit() {
+        if (swift::core.mode() == swift::Mode::Record)
+            log::info("[Swift] Auto-save on exit: {}", swift::save());
         swift::active = false;
-        swift::mode = swift::Mode::Idle;
         swift::injecting = false;
+        swift::resetting = false;
+        swift::statusLabel = nullptr;
+        swift::core.stop();
         PlayLayer::onExit();
     }
 };

@@ -5,15 +5,15 @@
   },
   "id": "aspheral.swift-bot",
   "name": "Swift Bot",
-  "version": "v0.1.0",
+  "version": "v0.2.0",
   "developer": "Aspheral",
-  "description": "Experimental Geometry Dash showcase macro recorder, replay and slow-motion prototype.",
+  "description": "Experimental Geometry Dash showcase macro recorder, replay and slow-motion prototype, with separate P1 and P2 input channels.",
   "settings": {
     "slow-motion": {
       "type": "float",
       "name": "Simulation time scale (experimental)",
-      "description": "Scale Cocos scheduler delta in PlayLayer. Not validated for minimum GD physics step limits or CBF.",
-      "default": 0.25,
+      "description": "Scale Cocos scheduler delta inside PlayLayer. 1.0x is recommended until verified. This does not yet support CBF.",
+      "default": 1,
       "min": 0.001,
       "max": 1,
       "control": {

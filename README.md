@@ -6,7 +6,7 @@
 
 ## What is in this repository?
 
-- **Geode prototype** (Windows / GD 2.2081 / Geode v5.10.1): in-game REC, STOP and PLAY buttons; whole-physics-tick recording and playback; writes `latest.swift` in the mod save directory; adjustable experimental continuous simulation slow-motion.
+- **Geode prototype** (Windows / GD 2.2081 / Geode v5.10.1): in-game REC, STOP and PLAY buttons, with live P1/P2 event counters; whole-physics-tick recording and playback on separate P1 and P2 channels; writes `latest.swift` in the mod save directory; adjustable experimental continuous simulation slow-motion.
 - **Web macro lab** (`index.html`): load, inspect, edit, validate and export `.swift` files, plus a playback timeline inspector. This website **cannot control the installed game**.
 - **Pure JavaScript macro format library** and automated tests.
 
@@ -39,7 +39,7 @@ All values are nonnegative integers. `button` is 1, 2 or 3; `player2` and `down`
 - No verified determinism, level fingerprint, position anchors, RNG locking, start-position restoration or desync recovery yet.
 - No integrated CBF timing or TPS bypass. The TPS field stores metadata, and the native recorder targets GD's default 240 TPS.
 - No automatic route solving; future trajectory tools must use authoritative native simulation, not a browser parabola.
-- Slow motion scales the Cocos scheduler delta; it is not guaranteed to reduce GD's physics ticks when GD forces a minimum update count.
+- Slow motion defaults to **1× (off)** and scales the Cocos scheduler delta when configured; it is not guaranteed to reduce GD's physics ticks when GD forces a minimum update count.
 - The website is a **macro editor and timeline**, not a game renderer or an actual trajectory predictor.
 - Recording/playback should only be used for showcases, with completions clearly marked as bot-assisted.
 
@@ -55,3 +55,20 @@ All values are nonnegative integers. `button` is 1, 2 or 3; `player2` and `down`
 ## Web development
 
 `npm test` runs the macro format unit tests. The web app uses no build step or runtime dependencies and is suitable for static hosting on Vercel.
+
+## Two-player recording and verification (v0.2)
+
+Each input stores `player2=0` for **P1** or `player2=1` for **P2**. The pressed-state tracker is independent for each player and each of Jump, Left, and Right, including when both press the same button on the same tick. The in-game HUD displays live P1/P2 event totals. The website provides separate press/release statistics, player filtering and individual P1/P2 input visualization.
+
+Both the **standalone C++ replay core** and **JavaScript macro tests** cover simultaneous two-player input, independent release timing, preservation of same-tick ordering, and replay output. These tests do NOT establish successful integration with Geometry Dash's live 2-player input routing.
+
+To verify in GD:
+1. Use a 2-player level with separately mapped controls.
+2. Start REC, tap P1 alone, tap P2 alone, then hold both, releasing P1 before P2.
+3. Confirm the HUD increments P1 and P2 separately.
+4. STOP, import `latest.swift` into the Macro Lab, inspect both channels.
+5. PLAY in GD and compare the recorded behavior.
+6. Repeat after dying/resetting; verify that only the most recent attempt remains.
+
+The mod captures **the player2 flag passed by GD's input handler**. It cannot distinguish two hardware keys if GD itself maps both to the same player. CBF sub-tick events and determinism/desync verification are future work.
+

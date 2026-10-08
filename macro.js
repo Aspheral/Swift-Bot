@@ -65,3 +65,20 @@ export function transitionsAt(macro, tick) {
   }
   return held;
 }
+
+export function playerStats(macro, player2) {
+  if (player2 !== 0 && player2 !== 1) throw new Error("Player must be 0 or 1");
+  const stats = { events: 0, presses: 0, releases: 0 };
+  for (const e of macro.events) {
+    if (e.player2 !== player2) continue;
+    stats.events++;
+    if (e.down) stats.presses++;
+    else stats.releases++;
+  }
+  return stats;
+}
+
+export function playerEvents(macro, player2) {
+  if (player2 !== 0 && player2 !== 1) throw new Error("Player must be 0 or 1");
+  return macro.events.filter(e => e.player2 === player2);
+}

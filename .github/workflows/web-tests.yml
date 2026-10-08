@@ -21,3 +21,15 @@ jobs:
           node-version: '24'
       - name: Run macro tests
         run: npm test
+
+  native-core-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Compile standalone C++ input/replay core
+        run: g++ -std=c++23 -Wall -Wextra -Werror -pedantic tests/replay-core.cpp -o /tmp/swift-replay-test
+      - name: Test both player channels
+        run: /tmp/swift-replay-test
